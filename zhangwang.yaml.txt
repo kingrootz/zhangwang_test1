@@ -1,0 +1,60 @@
+manager810升级到final版
+
+1.manager rpm包更新到各个节点
+master节点需要安装所有3个rpm包
+rpm -ivh --force *.rpm
+
+agent节点仅需安装agent和common的rpm包
+rpm -ivh --force *agent*.rpm *common*.rpm
+
+2.备份service表数据
+如果集群开启ha，需要进入docker容器进行修改，docker ps | grep Manager
+通过/usr/bin/txsql/tools/txsql.sh连接manager数据库
+select id,productType,productVersion from service ;
++----+--------------+-----------------------+
+| id | productType  | productVersion        |
++----+--------------+-----------------------+
+|  1 | __FALLBACK__ | __FALLBACK__          |
+|  2 | __FALLBACK__ | __FALLBACK__          |
+|  4 | BASIC        | transwarp-8.1.0-final |
+|  5 | BASIC        | transwarp-8.1.0-final |
+|  6 | __FALLBACK__ | __FALLBACK__          |
+|  7 | __FALLBACK__ | __FALLBACK__          |
+| 10 | __FALLBACK__ | __FALLBACK__          |
+| 19 | __FALLBACK__ | __FALLBACK__          |
+| 20 | __FALLBACK__ | __FALLBACK__          |
+| 23 | __FALLBACK__ | __FALLBACK__          |
+| 30 | __FALLBACK__ | __FALLBACK__          |
+| 31 | __FALLBACK__ | __FALLBACK__          |
+| 35 | __FALLBACK__ | __FALLBACK__          |
+| 37 | __FALLBACK__ | __FALLBACK__          |
+| 38 | __FALLBACK__ | __FALLBACK__          |
+| 40 | __FALLBACK__ | __FALLBACK__          |
+| 46 | __FALLBACK__ | __FALLBACK__          |
+| 47 | __FALLBACK__ | __FALLBACK__          |
+| 52 | __FALLBACK__ | __FALLBACK__          |
+| 53 | __FALLBACK__ | __FALLBACK__          |
+| 58 | __FALLBACK__ | __FALLBACK__          |
+| 60 | __FALLBACK__ | __FALLBACK__          |
+| 62 | __FALLBACK__ | __FALLBACK__          |
++----+--------------+-----------------------+
+
+3.删除service表productType和productVersion列
+alter table service drop column productType ;
+alter table service drop column productVersion ;
+
+如果日志显示其他重复列，也请删除，如：
+alter table service drop column oldProductVersion ;
+
+4.删除DATABASECHANGELOG表中ID为8.1.0-add-product的数据
+select * from DATABASECHANGELOG where ID='8.1.0-add-product';
+| 8.1.0-add-product | dev    | db/changelog/db.changelog-8.1.0.xml | 2021-09-01 14:50:58 |            21 | EXECUTED | 8:6e3161c2a74eea51318245a6b4f2f48d | addColumn tableName=service |          | NULL | 4.3.5     | NULL     | NULL   | 0479055788    |
+
+delete from DATABASECHANGELOG where ID='8.1.0-add-product';
+
+5.重启manager服务
+systemctl restart transwarp-manager
+
+6.恢复service数据
+update service set productType='BASIC',productVersion='transwarp-8.1.0-final' where id in(4,5);
+
